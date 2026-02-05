@@ -1,10 +1,11 @@
-// Minimal reproduction of "unexpected cycle during cost computation" bug
+// Minimal reproduction of snforge "cycle during cost computation" bug
 //
-// To reproduce:
-//   cd /path/to/cycle_repro && snforge test
+// Trigger conditions:
+// 1. bounded_int_div_rem usage
+// 2. [[target.executable]] in Scarb.toml
+// 3. enable-gas = false in Scarb.toml
 //
-// Expected: Tests pass
-// Actual: [ERROR] found an unexpected cycle during cost computation
+// Remove any of these and tests pass.
 
 pub mod ntt;
 pub mod programs;

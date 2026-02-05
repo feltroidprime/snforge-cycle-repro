@@ -8,8 +8,8 @@ edition = "2024_07"
 [[target.executable]]
 name = "bench_ntt"
 function = "cycle_repro::programs::bench_ntt::main"
-sierra = true
 
+# This triggers the bug - without it, tests pass
 [cairo]
 enable-gas = false
 

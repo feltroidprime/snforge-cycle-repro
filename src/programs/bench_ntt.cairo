@@ -1,6 +1,6 @@
-use crate::ntt::ntt_512;
+use crate::ntt::reduce;
 
 #[executable]
-pub fn main(input: Array<felt252>) -> Array<felt252> {
-    ntt_512(input)
+pub fn main(input: felt252) -> felt252 {
+    reduce(input)
 }

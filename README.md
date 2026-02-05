@@ -1,51 +1,52 @@
-# snforge Cycle Detection Bug Reproduction
+# snforge Cycle Detection Bug - Minimal Reproduction
 
 Minimal reproduction of the "found an unexpected cycle during cost computation" error in snforge.
 
-## Setup
+## The Bug
+
+When ALL THREE of these conditions are met:
+1. Code uses `bounded_int_div_rem`
+2. Package has a `[[target.executable]]` defined
+3. `enable-gas = false` in Scarb.toml
+
+Then `snforge test` fails with:
+```
+[ERROR] found an unexpected cycle during cost computation
+```
+
+Remove ANY of the three conditions and tests pass.
+
+## Reproduce
 
 ```bash
 git clone https://github.com/feltroidprime/snforge-cycle-repro
 cd snforge-cycle-repro
-```
-
-## Reproduce the Bug
-
-```bash
 snforge test
 ```
 
-Expected output:
-```
-   Compiling test(cycle_repro_unittest) ...
-    Finished `dev` profile target(s) in ~10 seconds
-[ERROR] found an unexpected cycle during cost computation
-[ERROR] Error while compiling Sierra...
-```
+## Verify Each Condition
 
-## Verify Code is Valid
-
+### Without enable-gas = false: PASSES
 ```bash
-scarb build
+# Comment out [cairo] section in Scarb.toml
+snforge test  # Works!
 ```
 
-This succeeds, showing the Cairo code itself is valid.
+### Without executable: PASSES
+```bash
+# Comment out [[target.executable]] in Scarb.toml
+snforge test  # Works!
+```
+
+### Without bounded_int_div_rem: PASSES
+```bash
+# Replace ntt.cairo with code that doesn't use bounded_int_div_rem
+snforge test  # Works!
+```
 
 ## Analysis
 
-The issue occurs when:
-1. A package has an `#[executable]` function
-2. The package uses BoundedInt types with DivRemHelper implementations
-3. `snforge test` compiles with the universal-sierra-compiler
-
-The root cause appears to be that `scarb build` uses `enable_gas = false` for executables, while universal-sierra-compiler performs full gas cost computation, triggering false cycle detection in the type hierarchy.
-
-## Key Files
-
-- `src/ntt.cairo` - Auto-generated NTT using felt252 mode with BoundedInt reduction (~12K lines)
-- `src/programs/bench_ntt.cairo` - **The trigger:** An `#[executable]` function that uses the NTT
-
-Without the `#[executable]` function, the tests pass.
+The issue is that when `enable-gas = false` is set, scarb compiles without gas metering, but snforge's universal-sierra-compiler still tries to compute gas costs. The combination with `bounded_int_div_rem` triggers a false cycle detection.
 
 ## Environment
 
