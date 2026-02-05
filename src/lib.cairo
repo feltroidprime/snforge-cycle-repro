@@ -6,7 +6,6 @@
 // Expected: Tests pass
 // Actual: [ERROR] found an unexpected cycle during cost computation
 
-pub mod zq;
 pub mod ntt;
 pub mod programs;
 

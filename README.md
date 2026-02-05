@@ -1,46 +1,54 @@
-# Minimal Reproduction: "unexpected cycle during cost computation" in snforge
+# snforge Cycle Detection Bug Reproduction
 
-This package demonstrates a bug where `snforge test` fails with "found an unexpected cycle during cost computation" when compiling valid Cairo code that uses BoundedInt operations.
+Minimal reproduction of the "found an unexpected cycle during cost computation" error in snforge.
 
-## Environment
-
-- snforge: 0.55.0
-- universal-sierra-compiler: 2.7.0
-- scarb: 2.15.1
-- Cairo: 2.15.0
-
-## Reproduction Steps
+## Setup
 
 ```bash
-cd cycle_repro
+git clone https://github.com/feltroidprime/snforge-cycle-repro
+cd snforge-cycle-repro
+```
+
+## Reproduce the Bug
+
+```bash
 snforge test
 ```
 
-**Expected:** Tests pass
-**Actual:**
+Expected output:
 ```
+   Compiling test(cycle_repro_unittest) ...
+    Finished `dev` profile target(s) in ~10 seconds
 [ERROR] found an unexpected cycle during cost computation
-[ERROR] Error while compiling Sierra. Make sure you have the latest universal-sierra-compiler binary installed.
+[ERROR] Error while compiling Sierra...
 ```
+
+## Verify Code is Valid
+
+```bash
+scarb build
+```
+
+This succeeds, showing the Cairo code itself is valid.
+
+## Analysis
+
+The issue occurs when:
+1. A package has an `#[executable]` function
+2. The package uses BoundedInt types with DivRemHelper implementations
+3. `snforge test` compiles with the universal-sierra-compiler
+
+The root cause appears to be that `scarb build` uses `enable_gas = false` for executables, while universal-sierra-compiler performs full gas cost computation, triggering false cycle detection in the type hierarchy.
 
 ## Key Files
 
-- `src/ntt.cairo` - Auto-generated NTT (Number Theoretic Transform) using BoundedInt operations (~35k lines, 1982 type definitions)
-- `src/zq.cairo` - BoundedInt helper types and operations for modular arithmetic
+- `src/ntt.cairo` - Auto-generated NTT using felt252 mode with BoundedInt reduction (~12K lines)
 - `src/programs/bench_ntt.cairo` - **The trigger:** An `#[executable]` function that uses the NTT
 
-## Root Cause
+Without the `#[executable]` function, the tests pass.
 
-The issue occurs when:
-1. A package has an `#[executable]` function that uses BoundedInt-heavy code
-2. `snforge test` compiles the test Sierra
-3. `universal-sierra-compiler` (USC) tries to compute gas costs via `calc_metadata()`
-4. The cost computation algorithm detects a "cycle" in the dependency graph
+## Environment
 
-**Workaround:** The same code compiles successfully with `scarb build` because executables are compiled with `enable_gas = false`, which uses `calc_metadata_ap_change_only()` instead - skipping the problematic cost computation.
-
-## Minimal vs Full
-
-This is the minimal reproduction. The original issue was discovered in a larger package with ~35k lines of auto-generated NTT code. The key trigger is having an `#[executable]` function that references BoundedInt-heavy code.
-
-Without the `#[executable]` function in `programs/bench_ntt.cairo`, the tests pass.
+- scarb 2.15.1
+- snforge 0.55.0
+- Cairo 2.15.1
