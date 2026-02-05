@@ -1,6 +1,6 @@
-use crate::ntt::reduce;
+use crate::ntt::foo;
 
 #[executable]
-pub fn main(input: felt252) -> felt252 {
-    reduce(input)
+pub fn main() -> felt252 {
+    foo()
 }

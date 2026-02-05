@@ -1,7 +1,6 @@
-use crate::ntt::reduce;
+use crate::ntt::foo;
 
 #[test]
-fn test_reduce() {
-    let result = reduce(42);
-    assert_eq!(result, 42);
+fn test_foo() {
+    assert_eq!(foo(), 42);
 }

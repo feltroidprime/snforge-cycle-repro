@@ -1,20 +1,14 @@
-# snforge Cycle Detection Bug - Minimal Reproduction
+# snforge Bug: executable + enable-gas = false
 
-Minimal reproduction of the "found an unexpected cycle during cost computation" error in snforge.
+**Minimal reproduction of "found an unexpected cycle during cost computation"**
 
 ## The Bug
 
-When ALL THREE of these conditions are met:
-1. Code uses `bounded_int_div_rem`
-2. Package has a `[[target.executable]]` defined
-3. `enable-gas = false` in Scarb.toml
+When BOTH of these are true:
+1. Package has `[[target.executable]]`
+2. Package has `enable-gas = false`
 
-Then `snforge test` fails with:
-```
-[ERROR] found an unexpected cycle during cost computation
-```
-
-Remove ANY of the three conditions and tests pass.
+Then `snforge test` fails - even with trivial code like `fn foo() { 42 }`.
 
 ## Reproduce
 
@@ -24,32 +18,39 @@ cd snforge-cycle-repro
 snforge test
 ```
 
-## Verify Each Condition
-
-### Without enable-gas = false: PASSES
-```bash
-# Comment out [cairo] section in Scarb.toml
-snforge test  # Works!
+Output:
+```
+[ERROR] found an unexpected cycle during cost computation
 ```
 
-### Without executable: PASSES
-```bash
-# Comment out [[target.executable]] in Scarb.toml
-snforge test  # Works!
+## Fix
+
+Comment out either:
+- The `[[target.executable]]` section, OR
+- The `[cairo] enable-gas = false` section
+
+Then tests pass.
+
+## Files
+
+**src/ntt.cairo** (3 lines):
+```cairo
+pub fn foo() -> felt252 {
+    42
+}
 ```
 
-### Without bounded_int_div_rem: PASSES
-```bash
-# Replace ntt.cairo with code that doesn't use bounded_int_div_rem
-snforge test  # Works!
+**Scarb.toml** (key parts):
+```toml
+[[target.executable]]
+name = "my_executable"
+function = "cycle_repro::programs::bench_ntt::main"
+
+[cairo]
+enable-gas = false  # Comment this out and tests pass
 ```
-
-## Analysis
-
-The issue is that when `enable-gas = false` is set, scarb compiles without gas metering, but snforge's universal-sierra-compiler still tries to compute gas costs. The combination with `bounded_int_div_rem` triggers a false cycle detection.
 
 ## Environment
 
 - scarb 2.15.1
 - snforge 0.55.0
-- Cairo 2.15.1
